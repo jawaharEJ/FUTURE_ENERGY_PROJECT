@@ -1,0 +1,219 @@
+{% extends 'base.html' %}
+
+{% block title %}Home — Future Energy{% endblock %}
+
+{% block content %}
+<div class="hero">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="h4 mb-1">Future Energy Consumption Predictor</h1>
+            <div class="text-muted small">Quick forecasts and historical insights</div>
+        </div>
+        <div class="text-end">
+            {% if avg_energy %}
+                <div class="small text-muted">Avg:</div>
+                <div class="h5 mb-0">{{ avg_energy }} kWh</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+<!-- summary cards -->
+<div class="row g-3 mb-3">
+    <div class="col-sm-6 col-md-4">
+        <div class="card summary-card p-3">
+            <div class="d-flex align-items-center">
+                <div class="icon bg-primary text-white rounded-circle me-3"><i class="bi bi-speedometer2"></i></div>
+                <div>
+                    <div class="small text-muted">Average Consumption</div>
+                      <div class="h6 mb-0"><span class="count" data-target="{{ avg_energy or 0 }}">{{ avg_energy or 0 }}</span> kWh</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-md-4">
+        <div class="card summary-card p-3">
+            <div class="d-flex align-items-center">
+                <div class="icon bg-success text-white rounded-circle me-3"><i class="bi bi-bar-chart-line-fill"></i></div>
+                <div>
+                    <div class="small text-muted">Latest (most recent)</div>
+                      <div class="h6 mb-0"><span class="count" data-target="{{ latest_energy or 0 }}">{{ latest_energy or 0 }}</span> kWh</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-12 col-md-4">
+        <div class="card summary-card p-3">
+            <div class="d-flex align-items-center">
+                <div class="icon bg-warning text-white rounded-circle me-3"><i class="bi bi-arrow-repeat"></i></div>
+                <div>
+                    <div class="small text-muted">YoY Change</div>
+                      <div class="h6 mb-0">{% if yoy is not none %}<span class="count" data-target="{{ yoy }}">{{ yoy }}</span>% {% if yoy > 0 %}<i class="bi bi-arrow-up text-success"></i>{% elif yoy < 0 %}<i class="bi bi-arrow-down text-danger"></i>{% endif %}{% else %}<span class="count" data-target="0">0</span>%{% endif %}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- mini sparkline -->
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="card p-3 shadow-sm">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="small text-muted">Last 12 Months</div>
+                <div class="small text-muted">Trend</div>
+            </div>
+            <canvas id="miniSpark" height="60"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- revenue cards -->
+<div class="row g-3 mb-3">
+    <div class="col-sm-6 col-md-4">
+        <div class="card revenue-card p-3 shadow-sm">
+            <div class="label">Annual Potential</div>
+            <div class="value">₹{{ total_revenue }}</div>
+            <div class="small mt-2">@ ₹{{ kwh_rate }}/kWh</div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-md-4">
+        <div class="card revenue-card secondary p-3 shadow-sm">
+            <div class="label">Monthly Revenue</div>
+            <div class="value">₹{{ monthly_potential }}</div>
+            <div class="small mt-2">Avg: {{ avg_energy }} kWh</div>
+        </div>
+    </div>
+    <div class="col-sm-12 col-md-4">
+        <div class="card revenue-card tertiary p-3 shadow-sm">
+            <div class="label">Latest Month (Est.)</div>
+            <div class="value">₹{{ latest_revenue }}</div>
+            <div class="small mt-2">Latest: {{ latest_energy }} kWh</div>
+        </div>
+    </div>
+</div>
+<div class="row gx-4">
+    <div class="col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h3 class="card-title mb-3">Predict Energy Consumption</h3>
+                <form id="predictForm" action="/predict" method="post">
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Year</label>
+                            <input type="number" class="form-control" name="year" required>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Month</label>
+                            <input type="number" class="form-control" name="month" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Population</label>
+                        <input type="number" step="any" class="form-control" name="population" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Industrial Growth %</label>
+                        <input type="number" step="any" class="form-control" name="growth" required>
+                    </div>
+                    <button id="predictBtn" class="btn btn-primary w-100">Predict</button>
+                    <div id="predictSpinner" class="d-none text-center mt-2"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>
+                </form>
+
+                {% if prediction %}
+                    <div class="alert alert-success mt-3">
+                        <strong>Prediction:</strong> {{ prediction }} kWh
+                    </div>
+                    {% if plot %}
+                        <img src="{{ url_for('static', filename='prediction_plot.png') }}" class="img-fluid mt-3 rounded" alt="Prediction Plot">
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h3 class="card-title mb-3">Historical Energy Consumption</h3>
+                <canvas id="historyChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row mt-4">
+    <div class="col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">Recent Predictions</h5>
+                {% if recent_predictions %}
+                    <ul class="list-unstyled mb-0">
+                        {% for p in recent_predictions[:10] %}
+                            <li class="py-2 border-bottom">
+                                <div><strong>{{ p.user or 'guest' }}</strong> — {{ p.timestamp.split('T')[0] }}</div>
+                                <div class="small text-muted">{{ p.year }}-{{ '%02d'|format(p.month) }} • {{ p.population }} pop • {{ p.growth }}% growth</div>
+                                <div class="mt-1">Prediction: <strong>{{ p.prediction }} kWh</strong></div>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted">No recent predictions.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">ML Insights</h5>
+                <div id="insights-container" class="text-muted small">Loading insights...</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// client-side validation and loading state
+document.getElementById('predictForm').addEventListener('submit', function(e){
+    const btn = document.getElementById('predictBtn');
+    const spinner = document.getElementById('predictSpinner');
+    // simple validation
+    const year = this.year.value; const month = this.month.value; const pop = this.population.value; const growth = this.growth.value;
+    if(!year || !month || !pop || !growth){ e.preventDefault(); alert('Please fill all fields'); return; }
+    btn.disabled = true; spinner.classList.remove('d-none');
+});
+
+fetch('/data')
+  .then(r => r.json())
+  .then(rows => {
+    const labels = rows.map(r => r.Year + '-' + String(r.Month).padStart(2,'0'));
+    const data = rows.map(r => r.Energy_Consumption);
+    const ctx = document.getElementById('historyChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: { labels, datasets: [{ label: 'Energy (kWh)', data, borderColor: '#0d6efd', backgroundColor: 'rgba(13,110,253,0.08)', tension: 0.2 }] },
+      options: { responsive:true, plugins:{legend:{display:true}}, scales:{x:{display:true}, y:{display:true}} }
+    });
+  })
+  .catch(()=>{});
+
+// fetch ML insights
+fetch('/insights')
+  .then(r => r.json())
+  .then(data => {
+    if(data.error) throw new Error(data.error);
+    const html = `
+      <div class="mb-2"><strong>Trend:</strong> ${data.trend} (${data.trend_pct}%)</div>
+      <div class="mb-2"><strong>Recommendation:</strong> ${data.recommendation}</div>
+      <hr>
+      <div class="small"><strong>Clusters:</strong></div>
+      ${Object.keys(data.clusters).map(k => {
+        const c = data.clusters[k];
+        return `<div class="mb-1">• <strong>${k}:</strong> ${c.count} pts, Avg ${c.avg} kWh, Revenue $${c.revenue}/mo</div>`;
+      }).join('')}
+    `;
+    document.getElementById('insights-container').innerHTML = html;
+  })
+  .catch(e => { document.getElementById('insights-container').textContent = 'Could not load insights'; });
+</script>
+{% endblock %}

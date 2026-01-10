@@ -1,0 +1,81 @@
+:root{
+  --bg:#f0f3f8; --card:#ffffff; --muted:#6c757d; --brand:#0d6efd; --success:#198754; --accent:#6f42c1; --surface:#f8fbff;
+  --gradient1: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gradient2: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  --gradient3: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+*{box-sizing:border-box}
+body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial; background:var(--bg); color:#0f1724; margin:0; min-height:100%}
+.card{border-radius:10px}
+.card .card-title{font-weight:600}
+.navbar-brand{color:var(--brand)!important}
+.hero{padding:1.25rem 1.5rem; border-radius:12px; background:linear-gradient(90deg, rgba(13,110,253,0.06), rgba(111,66,193,0.03)); margin-bottom:1rem}
+.hero h1{margin:0; font-size:1.25rem}
+
+/* summary cards */
+.summary-card{background:var(--card); border:1px solid rgba(15,23,36,0.04); box-shadow:0 6px 18px rgba(15,23,36,0.04)}
+.summary-card .icon{width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:1.15rem}
+
+/* revenue cards - colorful gradients */
+.revenue-card{background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);color:white;border:none;padding:1.25rem}
+.revenue-card.secondary{background:linear-gradient(135deg, #f093fb 0%, #f5576c 100%)}
+.revenue-card.tertiary{background:linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)}
+.revenue-card .label{font-size:0.8rem; opacity:0.9}
+.revenue-card .value{font-size:1.75rem; font-weight:700}
+
+/* buttons */
+.btn-primary{background:linear-gradient(90deg,var(--brand),#5aa0ff);border:none;box-shadow:0 6px 18px rgba(13,110,253,0.08)}
+.btn-outline-primary{border-color:rgba(13,110,253,0.12)}
+
+/* form inputs */
+.form-control{min-height:44px;border-radius:8px}
+
+/* recent predictions list */
+.list-unstyled li{padding:.6rem 0}
+
+/* small screens tweaks */
+@media (max-width:767px){
+  .hero{padding:1rem}
+  .summary-card{padding:.9rem}
+}
+
+/* hover and micro animations */
+.card:hover{transform:translateY(-6px);transition:transform .18s ease, box-shadow .18s ease;box-shadow:0 14px 30px rgba(15,23,36,0.08)}
+.btn-primary:hover{transform:translateY(-2px)}
+.summary-card .icon{transition:transform .18s ease}
+.summary-card:hover .icon{transform:rotate(8deg) scale(1.03)}
+
+/* modal tweaks */
+.modal-content{border-radius:12px}
+.btn-primary{background:var(--brand);border-color:var(--brand)}
+footer{background:transparent}
+
+.alert-success{background:rgba(25,135,84,0.08);color:var(--success);border:none}
+
+/* Tables and lists */
+.list-group-item{border:none;padding:.6rem 0}
+
+/* Responsive tweaks */
+@media (max-width:767px){main{padding:1rem} .navbar .btn{padding:.35rem .6rem}}
+
+/* Dark theme overrides */
+.dark-theme{
+  --bg:#0b1220;
+  --card:#0f1724;
+  --muted:#9aa4b2;
+  --brand:#4ea8ff;
+  --success:#57d6a9;
+  background-color:var(--bg);
+  color:#e6eef8;
+}
+.dark-theme body, .dark-theme main{background:var(--bg); color:#e6eef8}
+.dark-theme .card{background:var(--card); color:#e6eef8}
+.dark-theme .navbar-brand{color:var(--brand)!important}
+.dark-theme .btn-primary{background:var(--brand); border-color:var(--brand)}
+.dark-theme .list-group-item{background:transparent; color:#e6eef8}
+.dark-theme .alert-success{background:rgba(25,135,84,0.12)}
+
+/* Smooth transitions */
+html{transition:background-color .25s ease,color .25s ease}
+.card, .navbar, main{transition:background-color .25s ease,color .25s ease}
+

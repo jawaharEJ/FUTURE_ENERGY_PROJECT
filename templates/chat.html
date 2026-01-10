@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block title %}Chat — Future Energy{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-8">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h4 class="mb-3">Energy Predictor Chatbot</h4>
+        <div id="chatbox" class="border p-3 mb-3" style="height: 300px; overflow-y: auto; background:#f8f9fa;"></div>
+        <div class="input-group">
+          <input type="text" id="userInput" class="form-control" placeholder="Ask me anything about the app...">
+          <button class="btn btn-primary" onclick="sendMessage()">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function sendMessage(){
+  const input=document.getElementById('userInput');
+  const chatbox=document.getElementById('chatbox');
+  const msg=input.value.trim(); if(!msg) return;
+  chatbox.innerHTML += `<p><strong>You:</strong> ${msg}</p>`;
+  input.value='';
+  const response = getResponse(msg.toLowerCase());
+  chatbox.innerHTML += `<p><strong>Bot:</strong> ${response}</p>`;
+  chatbox.scrollTop = chatbox.scrollHeight;
+}
+function getResponse(msg){
+  if(msg.includes('hello')||msg.includes('hi')) return 'Hello! How can I help you with the Energy Predictor?';
+  if(msg.includes('predict')||msg.includes('forecast')) return 'Use the Home page form to get a forecast from our Linear Regression model.';
+  if(msg.includes('login')) return 'Use your credentials to login; admin can access the dashboard.';
+  if(msg.includes('data')) return 'Historical data is used to train the model and can be viewed in the Admin panel.';
+  if(msg.includes('thanks')||msg.includes('thank')) return 'You\'re welcome!';
+  return 'I\'m happy to help — ask about predictions, data, or accounts.';
+}
+</script>
+{% endblock %}

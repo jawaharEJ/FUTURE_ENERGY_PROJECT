@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block title %}Admin — Future Energy{% endblock %}
+
+{% block content %}
+<div class="row gy-4">
+    <div class="col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">Statistics</h5>
+                <p class="mb-1"><strong>Total Users:</strong> {{ total_users }}</p>
+                <p class="mb-1"><strong>Data Points:</strong> {{ total_predictions }}</p>
+                <p class="mb-1"><strong>Model:</strong> Linear Regression</p>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mt-3">
+            <div class="card-body">
+                <h5 class="card-title">Users</h5>
+                {% if users %}
+                    <ul class="list-group list-group-flush">
+                        {% for username, info in users.items() %}
+                            <li class="list-group-item"> <strong>{{ username }}</strong> — {{ info.name }} <div class="text-muted small">{{ info.email }}</div></li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted">No users registered.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">Historical Energy Chart</h5>
+                <canvas id="adminChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+fetch('/data').then(r=>r.json()).then(rows=>{
+    const labels = rows.map(r=>r.Year + '-' + String(r.Month).padStart(2,'0'));
+    const data = rows.map(r=>r.Energy_Consumption);
+    const ctx = document.getElementById('adminChart').getContext('2d');
+    new Chart(ctx,{type:'line',data:{labels,datasets:[{label:'Energy (kWh)',data,borderColor:'#198754',backgroundColor:'rgba(25,135,84,0.08)',tension:0.2}]},options:{responsive:true}});
+}).catch(()=>{});
+</script>
+{% endblock %}
