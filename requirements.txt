@@ -6,3 +6,4 @@ flask-login
 plotly
 seaborn
 numpy
+gunicorn

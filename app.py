@@ -3,8 +3,10 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import datetime
 import io
 import pandas as pd
-from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.cluster import KMeans
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
 import os
 import json
@@ -16,14 +18,18 @@ import numpy as np
 print("Starting app")
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key'  # Change this to a random secret key
+app.secret_key = os.environ.get('SECRET_KEY', 'your_secret_key')  # Use environment variable in production
 
 data = pd.read_csv('energy_data.csv')
 
-X = data[['Year','Month','Population','Industrial_Growth']]
+# Add seasonal features
+data['Month_sin'] = np.sin(2 * np.pi * data['Month'] / 12)
+data['Month_cos'] = np.cos(2 * np.pi * data['Month'] / 12)
+
+X = data[['Year','Month','Population','Industrial_Growth','Month_sin','Month_cos']]
 y = data['Energy_Consumption']
 
-model = LinearRegression()
+model = RandomForestRegressor(n_estimators=5, random_state=42)
 model.fit(X, y)
 
 # revenue per kWh (configurable) in Indian Rupees
@@ -133,7 +139,9 @@ def predict():
     month = int(request.form['month'])
     population = float(request.form['population'])
     growth = float(request.form['growth'])
-    prediction = model.predict([[year, month, population, growth]])
+    month_sin = np.sin(2 * np.pi * month / 12)
+    month_cos = np.cos(2 * np.pi * month / 12)
+    prediction = model.predict([[year, month, population, growth, month_sin, month_cos]])
     pred_value = round(prediction[0], 2)
 
     # Generate plot
@@ -141,7 +149,7 @@ def predict():
     plt.plot(data['Year'] + data['Month']/12, data['Energy_Consumption'], label='Historical Data', marker='o')
     plt.scatter(year + month/12, pred_value, color='red', label=f'Prediction: {pred_value}', s=100)
     plt.xlabel('Year')
-    plt.ylabel('Energy Consumption (kWh)')
+    plt.ylabel('Energy Consumption (GWh)')
     plt.title('Energy Consumption Prediction')
     plt.legend()
     plt.grid(True)
@@ -439,4 +447,6 @@ def export_report():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
+    print(f"Starting Flask app on http://localhost:{port}/")
+    print("Press Ctrl+C to stop the server")
     app.run(host='0.0.0.0', port=port, debug=False)
