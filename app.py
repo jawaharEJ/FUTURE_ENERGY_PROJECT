@@ -14,66 +14,89 @@ import plotly.graph_objects as go
 import plotly.express as px
 import seaborn as sns
 import numpy as np
+import sys
 
-print("Starting app")
+print("Starting Flask app...")
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your_secret_key')  # Use environment variable in production
 
-# Initialize data and model as None - will load on first request
-data = None
-model = None
+# Global storage for data and model
+class AppState:
+    data = None
+    model = None
+    initialized = False
 
 def load_data_and_model():
     """Load CSV and train model - called on first request"""
-    global data, model
-    if data is not None and model is not None:
+    if AppState.initialized:
         return  # Already loaded
     
     try:
         print("Loading energy data...")
+        sys.stdout.flush()
+        
         # Try multiple paths
         csv_paths = ['energy_data.csv', './energy_data.csv', '/app/energy_data.csv']
-        data_loaded = False
+        data_file = None
         
         for csv_path in csv_paths:
             if os.path.exists(csv_path):
                 print(f"Found CSV at: {csv_path}")
-                data = pd.read_csv(csv_path)
-                data_loaded = True
+                sys.stdout.flush()
+                data_file = csv_path
                 break
         
-        if not data_loaded:
-            print(f"WARNING: energy_data.csv not found in paths: {csv_paths}")
-            print(f"Current directory: {os.getcwd()}")
-            print(f"Files in current directory: {os.listdir('.')}")
-            # Create dummy data if CSV not found
-            data = pd.DataFrame({
+        if data_file:
+            AppState.data = pd.read_csv(data_file)
+            print(f"Loaded {len(AppState.data)} rows from CSV")
+        else:
+            print(f"CSV not found, using dummy data")
+            AppState.data = pd.DataFrame({
                 'Year': [2020, 2021, 2022],
                 'Month': [1, 1, 1],
                 'Population': [1000000, 1100000, 1200000],
                 'Industrial_Growth': [0.05, 0.06, 0.07],
                 'Energy_Consumption': [100, 110, 120]
             })
-            print("Using dummy data")
         
         # Add seasonal features
-        data['Month_sin'] = np.sin(2 * np.pi * data['Month'] / 12)
-        data['Month_cos'] = np.cos(2 * np.pi * data['Month'] / 12)
+        AppState.data['Month_sin'] = np.sin(2 * np.pi * AppState.data['Month'] / 12)
+        AppState.data['Month_cos'] = np.cos(2 * np.pi * AppState.data['Month'] / 12)
         
-        X = data[['Year','Month','Population','Industrial_Growth','Month_sin','Month_cos']]
-        y = data['Energy_Consumption']
+        X = AppState.data[['Year','Month','Population','Industrial_Growth','Month_sin','Month_cos']]
+        y = AppState.data['Energy_Consumption']
         
         print("Training model...")
-        model = RandomForestRegressor(n_estimators=5, random_state=42)
-        model.fit(X, y)
-        print("Model trained successfully")
+        sys.stdout.flush()
+        AppState.model = RandomForestRegressor(n_estimators=5, random_state=42)
+        AppState.model.fit(X, y)
+        AppState.initialized = True
+        print("Model trained successfully!")
+        sys.stdout.flush()
         
     except Exception as e:
-        print(f"ERROR loading data/model: {e}")
+        print(f"ERROR loading data/model: {e}", file=sys.stderr)
+        sys.stderr.flush()
         import traceback
         traceback.print_exc()
-        raise
+        # Don't raise - let the app continue with dummy data
+        AppState.data = pd.DataFrame({
+            'Year': [2020], 'Month': [1], 'Population': [1000000],
+            'Industrial_Growth': [0.05], 'Energy_Consumption': [100]
+        })
+        AppState.model = RandomForestRegressor(n_estimators=1, random_state=42)
+        AppState.model.fit(AppState.data[['Year','Month','Population','Industrial_Growth','Month_sin' if 'Month_sin' in AppState.data.columns else 'Month','Month_cos' if 'Month_cos' in AppState.data.columns else 'Month']], AppState.data['Energy_Consumption'])
+        AppState.initialized = True
+
+# Create shortcuts
+def get_data():
+    load_data_and_model()
+    return AppState.data
+
+def get_model():
+    load_data_and_model()
+    return AppState.model
 
 # revenue per kWh (configurable) in Indian Rupees
 KWH_RATE = 10  # ₹10 per kWh
@@ -90,6 +113,11 @@ def load_users():
 def save_users(users):
     with open(USERS_FILE, 'w') as f:
         json.dump(users, f)
+
+@app.route('/health')
+def health():
+    """Simple health check endpoint"""
+    return jsonify({'status': 'ok', 'initialized': AppState.initialized}), 200
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -128,9 +156,11 @@ def logout():
 
 @app.route('/')
 def home():
-    load_data_and_model()  # Ensure data is loaded
     if 'user' not in session:
         return redirect(url_for('login'))
+    
+    data = get_data()
+    
     # summary statistics
     avg_energy = None
     latest = None
@@ -179,7 +209,9 @@ def home():
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    load_data_and_model()  # Ensure data is loaded
+    data = get_data()
+    model = get_model()
+    
     year = int(request.form['year'])
     month = int(request.form['month'])
     population = float(request.form['population'])
@@ -271,10 +303,10 @@ def predict():
 
 @app.route('/admin')
 def admin():
-    load_data_and_model()  # Ensure data is loaded
     if 'user' not in session or session['user'] != 'admin':
         return redirect(url_for('login'))
     users = load_users()
+    data = get_data()
     total_users = len(users)
     total_predictions = len(data)
     return render_template('admin.html', total_users=total_users, total_predictions=total_predictions, users=users)
@@ -282,9 +314,9 @@ def admin():
 
 @app.route('/data')
 def data_api():
-    load_data_and_model()  # Ensure data is loaded
     # return historical CSV data for charts
     try:
+        data = get_data()
         records = data.to_dict(orient='records')
         return jsonify(records)
     except Exception:
@@ -293,8 +325,8 @@ def data_api():
 
 @app.route('/export/data.csv')
 def export_data_csv():
-    load_data_and_model()  # Ensure data is loaded
     try:
+        data = get_data()
         csv = data.to_csv(index=False)
         resp = make_response(csv)
         resp.headers['Content-Type'] = 'text/csv'
@@ -306,8 +338,8 @@ def export_data_csv():
 
 @app.route('/export/data.json')
 def export_data_json():
-    load_data_and_model()  # Ensure data is loaded
     try:
+        data = get_data()
         records = data.to_dict(orient='records')
         return jsonify(records)
     except Exception:
@@ -354,9 +386,9 @@ def chat():
 
 @app.route('/insights')
 def insights():
-    load_data_and_model()  # Ensure data is loaded
     # graph algorithms: clustering and trend analysis
     try:
+        data = get_data()
         # k-means clustering on energy consumption
         X_cluster = data[['Energy_Consumption']].values
         kmeans = KMeans(n_clusters=3, random_state=42)
@@ -409,10 +441,10 @@ def whoami():
 
 @app.route('/visualization')
 def visualization():
-    load_data_and_model()  # Ensure data is loaded
     if 'user' not in session:
         return redirect(url_for('login'))
     
+    data = get_data()
     # Get data for charts
     monthly_data = data.groupby('Month')['Energy_Consumption'].mean().to_dict()
     monthly_labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -441,8 +473,8 @@ def reports():
 @app.route('/api/generate-report', methods=['POST'])
 def generate_report():
     """Generate custom report based on filters"""
-    load_data_and_model()  # Ensure data is loaded
     try:
+        data = get_data()
         filters = request.json
         filtered_data = data.copy()
         
@@ -477,8 +509,8 @@ def generate_report():
 @app.route('/api/export-report', methods=['POST'])
 def export_report():
     """Export custom report as CSV"""
-    load_data_and_model()  # Ensure data is loaded
     try:
+        data = get_data()
         filters = request.json
         filtered_data = data.copy()
         
