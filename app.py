@@ -20,17 +20,60 @@ print("Starting app")
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your_secret_key')  # Use environment variable in production
 
-data = pd.read_csv('energy_data.csv')
+# Initialize data and model as None - will load on first request
+data = None
+model = None
 
-# Add seasonal features
-data['Month_sin'] = np.sin(2 * np.pi * data['Month'] / 12)
-data['Month_cos'] = np.cos(2 * np.pi * data['Month'] / 12)
-
-X = data[['Year','Month','Population','Industrial_Growth','Month_sin','Month_cos']]
-y = data['Energy_Consumption']
-
-model = RandomForestRegressor(n_estimators=5, random_state=42)
-model.fit(X, y)
+def load_data_and_model():
+    """Load CSV and train model - called on first request"""
+    global data, model
+    if data is not None and model is not None:
+        return  # Already loaded
+    
+    try:
+        print("Loading energy data...")
+        # Try multiple paths
+        csv_paths = ['energy_data.csv', './energy_data.csv', '/app/energy_data.csv']
+        data_loaded = False
+        
+        for csv_path in csv_paths:
+            if os.path.exists(csv_path):
+                print(f"Found CSV at: {csv_path}")
+                data = pd.read_csv(csv_path)
+                data_loaded = True
+                break
+        
+        if not data_loaded:
+            print(f"WARNING: energy_data.csv not found in paths: {csv_paths}")
+            print(f"Current directory: {os.getcwd()}")
+            print(f"Files in current directory: {os.listdir('.')}")
+            # Create dummy data if CSV not found
+            data = pd.DataFrame({
+                'Year': [2020, 2021, 2022],
+                'Month': [1, 1, 1],
+                'Population': [1000000, 1100000, 1200000],
+                'Industrial_Growth': [0.05, 0.06, 0.07],
+                'Energy_Consumption': [100, 110, 120]
+            })
+            print("Using dummy data")
+        
+        # Add seasonal features
+        data['Month_sin'] = np.sin(2 * np.pi * data['Month'] / 12)
+        data['Month_cos'] = np.cos(2 * np.pi * data['Month'] / 12)
+        
+        X = data[['Year','Month','Population','Industrial_Growth','Month_sin','Month_cos']]
+        y = data['Energy_Consumption']
+        
+        print("Training model...")
+        model = RandomForestRegressor(n_estimators=5, random_state=42)
+        model.fit(X, y)
+        print("Model trained successfully")
+        
+    except Exception as e:
+        print(f"ERROR loading data/model: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
 
 # revenue per kWh (configurable) in Indian Rupees
 KWH_RATE = 10  # ₹10 per kWh
@@ -85,6 +128,7 @@ def logout():
 
 @app.route('/')
 def home():
+    load_data_and_model()  # Ensure data is loaded
     if 'user' not in session:
         return redirect(url_for('login'))
     # summary statistics
@@ -135,6 +179,7 @@ def home():
 
 @app.route('/predict', methods=['POST'])
 def predict():
+    load_data_and_model()  # Ensure data is loaded
     year = int(request.form['year'])
     month = int(request.form['month'])
     population = float(request.form['population'])
@@ -226,6 +271,7 @@ def predict():
 
 @app.route('/admin')
 def admin():
+    load_data_and_model()  # Ensure data is loaded
     if 'user' not in session or session['user'] != 'admin':
         return redirect(url_for('login'))
     users = load_users()
@@ -236,6 +282,7 @@ def admin():
 
 @app.route('/data')
 def data_api():
+    load_data_and_model()  # Ensure data is loaded
     # return historical CSV data for charts
     try:
         records = data.to_dict(orient='records')
@@ -246,6 +293,7 @@ def data_api():
 
 @app.route('/export/data.csv')
 def export_data_csv():
+    load_data_and_model()  # Ensure data is loaded
     try:
         csv = data.to_csv(index=False)
         resp = make_response(csv)
@@ -258,6 +306,7 @@ def export_data_csv():
 
 @app.route('/export/data.json')
 def export_data_json():
+    load_data_and_model()  # Ensure data is loaded
     try:
         records = data.to_dict(orient='records')
         return jsonify(records)
@@ -305,6 +354,7 @@ def chat():
 
 @app.route('/insights')
 def insights():
+    load_data_and_model()  # Ensure data is loaded
     # graph algorithms: clustering and trend analysis
     try:
         # k-means clustering on energy consumption
@@ -359,6 +409,7 @@ def whoami():
 
 @app.route('/visualization')
 def visualization():
+    load_data_and_model()  # Ensure data is loaded
     if 'user' not in session:
         return redirect(url_for('login'))
     
@@ -390,6 +441,7 @@ def reports():
 @app.route('/api/generate-report', methods=['POST'])
 def generate_report():
     """Generate custom report based on filters"""
+    load_data_and_model()  # Ensure data is loaded
     try:
         filters = request.json
         filtered_data = data.copy()
@@ -425,6 +477,7 @@ def generate_report():
 @app.route('/api/export-report', methods=['POST'])
 def export_report():
     """Export custom report as CSV"""
+    load_data_and_model()  # Ensure data is loaded
     try:
         filters = request.json
         filtered_data = data.copy()
