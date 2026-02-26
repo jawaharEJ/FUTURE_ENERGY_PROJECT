@@ -1,0 +1,145 @@
+{% extends 'base.html' %}
+
+{% block title %}Data Visualization — Future Energy{% endblock %}
+
+{% block content %}
+<div class="hero">
+    <h1 class="h4 mb-1">📊 Data Visualization</h1>
+    <div class="text-muted small">Energy consumption analysis and trends</div>
+</div>
+
+<div class="row">
+    <div class="col-lg-6">
+        <div class="card shadow-sm p-4">
+            <h5 class="card-title mb-3">Monthly Average Consumption</h5>
+            <canvas id="monthlyChart"></canvas>
+        </div>
+    </div>
+    
+    <div class="col-lg-6">
+        <div class="card shadow-sm p-4">
+            <h5 class="card-title mb-3">Yearly Average Consumption</h5>
+            <canvas id="yearlyChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card shadow-sm p-4">
+            <h5 class="card-title mb-3">Population vs Energy Consumption Trend</h5>
+            <canvas id="trendChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-4">
+        <div class="card p-3 bg-light">
+            <h6>📈 Insights</h6>
+            <p class="small mb-0">Monthly patterns show peak consumption in <strong>{% if monthly_values|max == monthly_values[6] or monthly_values|max == monthly_values[7] %}summer months{% else %}winter months{% endif %}</strong></p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-3 bg-light">
+            <h6>🔄 Trend</h6>
+            <p class="small mb-0">Year-over-year data shows {% if yearly_values[-1] > yearly_values[0] %}<span class="text-success">increasing</span>{% else %}<span class="text-danger">decreasing</span>{% endif %} consumption</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-3 bg-light">
+            <h6>💡 Next</h6>
+            <p class="small mb-0"><a href="/reports">Generate custom reports</a> with advanced filters</p>
+        </div>
+    </div>
+</div>
+
+<script>
+// Monthly Chart
+const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+new Chart(monthlyCtx, {
+    type: 'bar',
+    data: {
+        labels: {{ monthly_labels|tojson }},
+        datasets: [{
+            label: 'Avg Energy (kWh)',
+            data: {{ monthly_values|tojson }},
+            backgroundColor: 'rgba(54, 162, 235, 0.8)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 2,
+            borderRadius: 5
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            y: { beginAtZero: true }
+        }
+    }
+});
+
+// Yearly Chart
+const yearlyCtx = document.getElementById('yearlyChart').getContext('2d');
+new Chart(yearlyCtx, {
+    type: 'line',
+    data: {
+        labels: {{ yearly_labels|tojson }},
+        datasets: [{
+            label: 'Avg Energy (kWh)',
+            data: {{ yearly_values|tojson }},
+            borderColor: 'rgba(75, 192, 75, 1)',
+            backgroundColor: 'rgba(75, 192, 75, 0.1)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 6,
+            pointBackgroundColor: 'rgba(75, 192, 75, 1)',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            y: { beginAtZero: true }
+        }
+    }
+});
+
+// Trend Chart (Population vs Energy)
+const trendCtx = document.getElementById('trendChart').getContext('2d');
+new Chart(trendCtx, {
+    type: 'scatter',
+    data: {
+        datasets: [{
+            label: 'Population vs Energy',
+            borderColor: 'rgba(255, 99, 132, 1)',
+            backgroundColor: 'rgba(255, 99, 132, 0.5)',
+            showLine: true,
+            tension: 0.3,
+            borderWidth: 2,
+            pointRadius: 4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: { display: true }
+        },
+        scales: {
+            x: { type: 'linear', position: 'bottom' },
+            y: { beginAtZero: true }
+        }
+    }
+});
+</script>
+{% endblock %}
